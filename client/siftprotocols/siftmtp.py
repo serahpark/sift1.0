@@ -42,6 +42,7 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		self.finalkey = None
+		self.tk = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 
@@ -124,13 +125,14 @@ class SiFT_MTP:
 			
 			self.msg_hdr_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
-
 		
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
+		etk_value = msg_body[-self.size_msg_etk:]
+		
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message received (' + str(msg_len) + '):')
