@@ -207,5 +207,4 @@ class SiFT_LOGIN:
 
     def generate_final_transfer_key(self, client_random, server_random, request_hash):
         final_transfer_key = HKDF(client_random + server_random, 32, request_hash, SHA256)
-        self.mtp.finalkey = final_transfer_key
-        return self.mtp.finalkey
+        self.mtp.set_final_key(self, final_transfer_key)

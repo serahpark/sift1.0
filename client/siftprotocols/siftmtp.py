@@ -41,10 +41,13 @@ class SiFT_MTP:
 						  self.type_command_req, self.type_command_res,
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
-		self.finalkey = '' 
+		self.finalkey = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 
+
+	def set_final_key(self, key):
+		self.finalkey = key
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
@@ -122,7 +125,7 @@ class SiFT_MTP:
 			self.msg_hdr_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
 
-
+		
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
@@ -173,5 +176,4 @@ class SiFT_MTP:
 			self.send_bytes(msg_hdr + msg_payload)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-
 
