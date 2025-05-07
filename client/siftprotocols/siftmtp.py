@@ -1,6 +1,15 @@
 #python3
 
 import socket
+import sys, getopt, getpass
+import json
+from base64 import b64encode, b64decode
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Signature import PKCS1_PSS
+from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA256
+from Crypto.Util import Padding
+from Crypto import Random
 
 class SiFT_MTP_Error(Exception):
 
@@ -42,9 +51,23 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		self.finalkey = None
+		self.private_key_path = '../privatekey.pem'
 		self.tk = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
+
+	# ------- UTILS --------
+	def load_keypair(privkeyfile):
+		#passphrase = input('Enter a passphrase to decode the saved private key: ')
+		passphrase = getpass.getpass('Enter a passphrase to decode the saved private key: ')
+		with open(privkeyfile, 'rb') as f:
+			keypairstr = f.read()
+		try:
+			return RSA.import_key(keypairstr, passphrase=passphrase)
+		except ValueError:
+			print('Error: Cannot import private key from file ' + privkeyfile)
+			sys.exit(1)
+
 
 
 	def set_final_key(self, key):
@@ -132,7 +155,27 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
 		etk_value = msg_body[-self.size_msg_etk:]
-		
+		mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
+		enc_payload = msg_body[:self.size_msg_enc_payload]
+
+		keypair = self.load_keypair()
+		RSAcipher = PKCS1_OAEP(keypair)
+
+		#TODO: decrypt the AES key with RSAcipher
+		try:
+			self.tk = RSAcipher.decrypt(etk_value)
+		except ValueError:
+			print('Error: Decryption of ETK failed.')
+			sys.exit(1)
+		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+		cipher = AES.new(self.tk, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		cipher.update(msg_hdr)
+		try:
+			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+		except ValueError:
+			print('Error: MAC verification/decryption failed')
+			sys.exit(1)
+
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message received (' + str(msg_len) + '):')
