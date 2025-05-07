@@ -173,7 +173,6 @@ class SiFT_MTP:
 		try:
 			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
 		except ValueError:
-			print('Error: MAC verification/decryption failed')
 			sys.exit(1)
 
 		# DEBUG 
