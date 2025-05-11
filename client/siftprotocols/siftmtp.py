@@ -165,7 +165,6 @@ class SiFT_MTP:
 			try:
 				self.tk = RSAcipher.decrypt(etk_value)
 			except ValueError:
-				print('Error: Decryption of ETK failed.')
 				sys.exit(1)
 			nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 			cipher = AES.new(self.tk, AES.MODE_GCM, nonce=nonce, mac_len=12)
