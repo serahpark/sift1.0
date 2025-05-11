@@ -192,7 +192,7 @@ class SiFT_MTP:
 		if len(msg_body) != msg_len - self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
-		return parsed_msg_hdr['typ'], msg_body
+		return parsed_msg_hdr['typ'], dec_payload
 
 
 	# sends all bytes provided via the peer socket
