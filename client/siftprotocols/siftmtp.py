@@ -10,6 +10,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 from Crypto.Util import Padding
 from Crypto import Random
+from Crypto.Random import get_random_bytes
 
 class SiFT_MTP_Error(Exception):
 
@@ -204,26 +205,43 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-		
-		# if login response/request (check type):
-		# msg_hdr_sqn = 0001
-		# else:
-		# msg_hdr_sqn = self.msg_hdr_snd_sqn + 1
+		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
 
-		# build message
+		# if login response/request (check type):
+		if parsed_msg_hdr['typ'] == self.type_login_req or parsed_msg_hdr['typ'] == self.type_login_res:
+			self.msg_hdr_snd_sqn = b'\x00\x01'
+			# generate tk for login request
+			if parsed_msg_hdr['typ'] == self.type_login_req:
+				self.key = get_random_bytes(32)
+		else:
+			self.msg_hdr_snd_sqn = self.msg_hdr_snd_sqn + 1
+
+		# build message header
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
 		# generate 6 byte rnd
+		r = get_random_bytes(6)
 		# append rnd, sqn, rsv to the header
-
-
-		# generate tk for login request
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_hdr_snd_sqn + r + self.msg_hdr_rsv
+		
 		# if login request then we use tk to encrypt the payload/everything
 		# otherwise we use the final key to encrypt everything
-
-		# append etk to the message if login request
-
+		nonce = self.msg_hdr_snd_sqn + r
+		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		cipher.update(msg_hdr)
+		enc_payload, mac = cipher.encrypt_and_digest(msg_payload)
+		
+		# append enc_payload, mac, and etk to the login req message
+		if parsed_msg_hdr['typ'] == self.type_login_req:
+			cipher = PKCS1_OAEP(self.key)
+			etk = cipher.encrypt(self.key)
+			msg_body = enc_payload + mac + etk
+			return msg_hdr + msg_body
+		
+		# append enc_payload and mac to other messages
+		else:
+			msg_body = enc_payload + mac
+			return msg_hdr + msg_body
 
 		# DEBUG 
 		if self.DEBUG:
