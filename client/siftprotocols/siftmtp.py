@@ -25,6 +25,7 @@ class SiFT_MTP:
 		self.version_minor = 5
 		self.msg_hdr_ver = b'\x01\x00'
 		self.msg_hdr_rcv_sqn = b'\x00\x00'
+		self.msg_hdr_snd_sqn = b'\x00\x00'
 		self.msg_hdr_rsv =  b'\x00\x00'
 		self.size_msg_hdr = 16 # changed to 16 for new header size
 		self.size_msg_hdr_ver = 2
