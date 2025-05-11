@@ -211,10 +211,25 @@ class SiFT_MTP:
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
 		
+		# if login response/request (check type):
+		# msg_hdr_sqn = 0001
+		# else:
+		# msg_hdr_sqn = self.msg_hdr_snd_sqn + 1
+
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
+		# generate 6 byte rnd
+		# append rnd, sqn, rsv to the header
+
+
+		# generate tk for login request
+		# if login request then we use tk to encrypt the payload/everything
+		# otherwise we use the final key to encrypt everything
+
+		# append etk to the message if login request
+
 
 		# DEBUG 
 		if self.DEBUG:
@@ -228,6 +243,6 @@ class SiFT_MTP:
 		# try to send
 		try:
 			self.send_bytes(msg_hdr + msg_payload)
+			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-
