@@ -41,11 +41,12 @@ class SiFT_LOGIN:
         # include client_random: is a hexadecimal number converted to a string, the value
         # of which is a 16-byte freshly generated random value.
 
+        client_random = get_random_bytes(16).hex()
         login_req_str = login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password']
-        login_req_str += self.delimiter + get_random_bytes(16).hex()
+        login_req_str += self.delimiter + client_random
         login_req_str += self.delimiter + str(time.time_ns())
-        return login_req_str.encode(self.coding)
+        return login_req_str.encode(self.coding), client_random
 
 
     # parses a login request into a dictionary
@@ -65,8 +66,9 @@ class SiFT_LOGIN:
 
         login_res_str = login_res_struct['request_hash'].hex() 
         # include server_random: is a hexadecimal number converted to a string, the value
-        login_req_str += self.delimiter + get_random_bytes(16).hex()
-        return login_res_str.encode(self.coding)
+        server_random = get_random_bytes(16).hex()
+        login_req_str += self.delimiter + server_random
+        return login_res_str.encode(self.coding), server_random
 
 
     # parses a login response into a dictionary
@@ -128,7 +130,7 @@ class SiFT_LOGIN:
         # building login response
         login_res_struct = {}
         login_res_struct['request_hash'] = request_hash
-        msg_payload = self.build_login_res(login_res_struct)
+        msg_payload, server_random = self.build_login_res(login_res_struct)
 
         # DEBUG 
         if self.DEBUG:
@@ -148,6 +150,9 @@ class SiFT_LOGIN:
             print('User ' + login_req_struct['username'] + ' logged in')
         # DEBUG 
 
+        # generate final transfer key
+        self.generate_final_transfer_key(login_req_struct['client_random'], server_random, request_hash)
+
         return login_req_struct['username']
 
 
@@ -158,7 +163,7 @@ class SiFT_LOGIN:
         login_req_struct = {}
         login_req_struct['username'] = username
         login_req_struct['password'] = password
-        msg_payload = self.build_login_req(login_req_struct)
+        msg_payload, client_random = self.build_login_req(login_req_struct)
 
         # DEBUG 
         if self.DEBUG:
@@ -200,6 +205,8 @@ class SiFT_LOGIN:
         # checking request_hash received in the login response
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
+        
+        self.generate_final_transfer_key(client_random, login_res_struct['server_random'], request_hash)
 
 
     # generate final transfer key by concatenating client_random and server_random, 
