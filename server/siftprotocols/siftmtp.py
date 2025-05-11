@@ -58,7 +58,7 @@ class SiFT_MTP:
 		self.peer_socket = peer_socket
 
 	# ------- UTILS --------
-	def load_keypair(keyfile):
+	def load_keypair(self, keyfile):
 		#passphrase = input('Enter a passphrase to decode the saved key: ')
 		passphrase = getpass.getpass('Enter a passphrase to decode the saved key: ')
 		with open(keyfile, 'rb') as f:
