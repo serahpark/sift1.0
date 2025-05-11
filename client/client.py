@@ -202,7 +202,7 @@ if __name__ == '__main__':
     loginp = SiFT_LOGIN(mtp)
 
     keypath = './publickey.pem'
-    mtp.keypath = mtp.load_keypair(keypath)
+    mtp.RSAkey = mtp.load_keypair(keypath)
 
     print()
     username = input('   Username: ')

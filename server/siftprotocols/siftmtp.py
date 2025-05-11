@@ -53,7 +53,7 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		self.key = None
-		self.keypath = None
+		self.RSAkey = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 
@@ -210,13 +210,12 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
 
 		# if login response/request (check type):
-		if parsed_msg_hdr['typ'] == self.type_login_req or parsed_msg_hdr['typ'] == self.type_login_res:
+		if msg_type == self.type_login_req or msg_type == self.type_login_res:
 			tmp_snd_sqn = b'\x00\x01'
 			# generate tk for login request
-			if parsed_msg_hdr['typ'] == self.type_login_req:
+			if msg_type == self.type_login_req:
 				self.key = get_random_bytes(32)
 		else:
 			tmp_snd_sqn = self.msg_hdr_snd_sqn + 1
@@ -237,8 +236,8 @@ class SiFT_MTP:
 		enc_payload, mac = cipher.encrypt_and_digest(msg_payload)
 		
 		# append enc_payload, mac, and etk to the login req message
-		if parsed_msg_hdr['typ'] == self.type_login_req:
-			cipher = PKCS1_OAEP.new(self.key)
+		if msg_type == self.type_login_req:
+			cipher = PKCS1_OAEP.new(self.RSAkey)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
 		

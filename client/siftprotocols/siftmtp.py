@@ -53,7 +53,7 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		self.key = None
-		self.keypath = None
+		self.RSAkey = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 
@@ -237,7 +237,7 @@ class SiFT_MTP:
 		
 		# append enc_payload, mac, and etk to the login req message
 		if msg_type == self.type_login_req:
-			cipher = PKCS1_OAEP.new(self.key)
+			cipher = PKCS1_OAEP.new(self.RSAkey)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
 		

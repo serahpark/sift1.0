@@ -53,7 +53,7 @@ class Server:
         mtp = SiFT_MTP(client_socket)
 
         keypath = './privatekey.pem'
-        mtp.keypath = mtp.load_keypair(keypath)
+        mtp.RSAkey = mtp.load_keypair(keypath)
 
         loginp = SiFT_LOGIN(mtp)
         users = self.load_users(self.server_usersfile)
