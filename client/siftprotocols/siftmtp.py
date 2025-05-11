@@ -133,9 +133,12 @@ class SiFT_MTP:
 		if self.msg_hdr_rcv_sqn == b'\x00\x00':
 
 			if parsed_msg_hdr['typ'] != self.type_login_req:
+				self.peer_socket.close()
 				raise SiFT_MTP_Error('Login request expected')
+				
 			
 			if parsed_msg_hdr['sqn'] != b'\x00\x01':
+				self.peer_socket.close()
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
 			
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
@@ -166,6 +169,7 @@ class SiFT_MTP:
 			try:
 				self.set_final_key(RSAcipher.decrypt(etk_value))
 			except ValueError:
+				self.peer_socket.close()
 				sys.exit(1)
 		else:
 			mac = msg_body[-self.size_msg_mac:]
@@ -176,6 +180,7 @@ class SiFT_MTP:
 		try:
 			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
 		except ValueError:
+			self.peer_socket.close()
 			sys.exit(1)
 
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']

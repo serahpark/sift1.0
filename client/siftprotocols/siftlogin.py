@@ -119,6 +119,7 @@ class SiFT_LOGIN:
 
         # check timestamp (must be within 2 seconds)
         if (int(login_req_struct['timestamps']) > time.time_ns() + 1000000000) or (int(login_req_struct['timestamps']) < time.time_ns() - 1000000000):
+            self.mtp.peer_socket.close()
             raise SiFT_LOGIN_Error('Login timestamp out of acceptance window')
         # checking username and password
         if login_req_struct['username'] in self.server_users:
