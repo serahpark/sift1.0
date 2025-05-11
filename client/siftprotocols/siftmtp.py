@@ -57,15 +57,15 @@ class SiFT_MTP:
 		self.peer_socket = peer_socket
 
 	# ------- UTILS --------
-	def load_keypair(privkeyfile):
-		#passphrase = input('Enter a passphrase to decode the saved private key: ')
-		passphrase = getpass.getpass('Enter a passphrase to decode the saved private key: ')
-		with open(privkeyfile, 'rb') as f:
-			keypairstr = f.read()
+	def load_key(keyfile):
+		#passphrase = input('Enter a passphrase to decode the saved key: ')
+		passphrase = getpass.getpass('Enter a passphrase to decode the saved key: ')
+		with open(keyfile, 'rb') as f:
+			keystr = f.read()
 		try:
-			return RSA.import_key(keypairstr, passphrase=passphrase)
+			return RSA.import_key(keystr, passphrase=passphrase)
 		except ValueError:
-			print('Error: Cannot import private key from file ' + privkeyfile)
+			print('Error: Cannot import key from file ' + keyfile)
 			sys.exit(1)
 
 
