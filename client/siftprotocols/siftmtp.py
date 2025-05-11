@@ -51,7 +51,7 @@ class SiFT_MTP:
 						  self.type_command_req, self.type_command_res,
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
-		self.key
+		self.key = None
 		self.keypath = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
@@ -163,7 +163,7 @@ class SiFT_MTP:
 			etk_value = msg_body[-self.size_msg_etk:]
 			mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
 			try:
-				self.key = RSAcipher.decrypt(etk_value)
+				self.set_final_key(RSAcipher.decrypt(etk_value))
 			except ValueError:
 				sys.exit(1)
 		else:
