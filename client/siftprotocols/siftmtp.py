@@ -154,6 +154,7 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
+		
 		etk_value = msg_body[-self.size_msg_etk:]
 		mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
 		enc_payload = msg_body[:self.size_msg_enc_payload]
