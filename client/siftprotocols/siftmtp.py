@@ -138,7 +138,6 @@ class SiFT_MTP:
 			if parsed_msg_hdr['sqn'] != b'\x00\x01':
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
 			
-			self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
 		
 		# handle all other msgs
@@ -147,7 +146,6 @@ class SiFT_MTP:
 			if parsed_msg_hdr['sqn'] <= self.msg_hdr_rcv_sqn:
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (too small)')
 			
-			self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
 		
 		try:
@@ -163,19 +161,30 @@ class SiFT_MTP:
 		keypair = self.load_keypair()
 		RSAcipher = PKCS1_OAEP(keypair)
 
-		#TODO: decrypt the AES key with RSAcipher
-		try:
-			self.tk = RSAcipher.decrypt(etk_value)
-		except ValueError:
-			print('Error: Decryption of ETK failed.')
-			sys.exit(1)
-		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
-		cipher = AES.new(self.tk, AES.MODE_GCM, nonce=nonce, mac_len=12)
-		cipher.update(msg_hdr)
-		try:
-			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
-		except ValueError:
-			sys.exit(1)
+		if parsed_msg_hdr['typ'] == self.type_login_req:
+			try:
+				self.tk = RSAcipher.decrypt(etk_value)
+			except ValueError:
+				print('Error: Decryption of ETK failed.')
+				sys.exit(1)
+			nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+			cipher = AES.new(self.tk, AES.MODE_GCM, nonce=nonce, mac_len=12)
+			cipher.update(msg_hdr)
+			try:
+				dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			except ValueError:
+				sys.exit(1)
+		else:
+			# decrypt with final key instead of etk
+			nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+			cipher = AES.new(self.finalkey, AES.MODE_GCM, nonce=nonce, mac_len=12)
+			cipher.update(msg_hdr)
+			try:
+				dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			except ValueError:
+				sys.exit(1)
+
+		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 
 		# DEBUG 
 		if self.DEBUG:
