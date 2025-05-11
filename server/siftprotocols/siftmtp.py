@@ -80,10 +80,12 @@ class SiFT_MTP:
 		parsed_msg_hdr, i = {}, 0
 		parsed_msg_hdr['ver'], i = msg_hdr[i:i+self.size_msg_hdr_ver], i+self.size_msg_hdr_ver 
 		parsed_msg_hdr['typ'], i = msg_hdr[i:i+self.size_msg_hdr_typ], i+self.size_msg_hdr_typ
-		parsed_msg_hdr['len'] = msg_hdr[i:i+self.size_msg_hdr_len], i+self.size_msg_hdr_len
-		parsed_msg_hdr['sqn'] = msg_hdr[i:i+self.size_msg_hdr_sqn], i+self.size_msg_hdr_sqn
-		parsed_msg_hdr['rnd'] = msg_hdr[i:i+self.size_msg_hdr_rnd], i+self.size_msg_hdr_rnd
+		parsed_msg_hdr['len'], i = msg_hdr[i:i+self.size_msg_hdr_len], i+self.size_msg_hdr_len
+		parsed_msg_hdr['sqn'], i = msg_hdr[i:i+self.size_msg_hdr_sqn], i+self.size_msg_hdr_sqn
+		parsed_msg_hdr['rnd'], i = msg_hdr[i:i+self.size_msg_hdr_rnd], i+self.size_msg_hdr_rnd
 		parsed_msg_hdr['rsv'] = msg_hdr[i:i+self.size_msg_hdr_rsv]
+		print(parsed_msg_hdr)
+		
 		return parsed_msg_hdr
 
 
@@ -111,7 +113,7 @@ class SiFT_MTP:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message header --> ' + e.err_msg)
-
+		print("received msg hdr bytes")
 		if len(msg_hdr) != self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message header received')
 		
@@ -122,9 +124,9 @@ class SiFT_MTP:
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
-
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
-		
+	
+		print("parsed msg hdr")
 		# do we have to check rsv? how do we check sqn and rnd (if even)
 		if parsed_msg_hdr['rsv'] != self.msg_hdr_rsv:
 			raise SiFT_MTP_Error('Incorrect reserved field value found in message header')
@@ -141,7 +143,7 @@ class SiFT_MTP:
 				self.peer_socket.close()
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
 			
-			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
+			self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
 		
 		# handle all other msgs
 		else:
@@ -150,17 +152,16 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (too small)')
 			
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
-		
+		print("finished processing msg hdr")
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
-
+		print("received msg body bytes")
 		enc_payload = msg_body[:self.size_msg_enc_payload]
 
-		keypair = self.load_keypair()
-		RSAcipher = PKCS1_OAEP(keypair)
+		RSAcipher = PKCS1_OAEP.new(self.RSAkey)
 
 		if parsed_msg_hdr['typ'] == self.type_login_req:
 
