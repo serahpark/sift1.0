@@ -24,7 +24,7 @@ class SiFT_MTP:
 		self.version_major = 0
 		self.version_minor = 5
 		self.msg_hdr_ver = b'\x01\x00'
-		self.msg_hdr_sqn = b'\x00\x00'
+		self.msg_hdr_rcv_sqn = b'\x00\x00'
 		self.msg_hdr_rsv =  b'\x00\x00'
 		self.size_msg_hdr = 16 # changed to 16 for new header size
 		self.size_msg_hdr_ver = 2
@@ -129,7 +129,7 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incorrect reserved field value found in message header')
 		
 		# handle login request (first message being received)
-		if self.msg_hdr_sqn == b'\x00\x00':
+		if self.msg_hdr_rcv_sqn == b'\x00\x00':
 
 			if parsed_msg_hdr['typ'] != self.type_login_req:
 				raise SiFT_MTP_Error('Login request expected')
@@ -137,16 +137,16 @@ class SiFT_MTP:
 			if parsed_msg_hdr['sqn'] != b'\x00\x01':
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
 			
-			self.msg_hdr_sqn = parsed_msg_hdr['sqn']
+			self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
 		
 		# handle all other msgs
 		else:
 
-			if parsed_msg_hdr['sqn'] <= self.msg_hdr_sqn:
+			if parsed_msg_hdr['sqn'] <= self.msg_hdr_rcv_sqn:
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (too small)')
 			
-			self.msg_hdr_sqn = parsed_msg_hdr['sqn']
+			self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
 		
 		try:
