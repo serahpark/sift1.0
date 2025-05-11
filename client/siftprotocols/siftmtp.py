@@ -51,13 +51,13 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		self.finalkey = None
-		self.private_key_path = '../privatekey.pem'
 		self.tk = None
+		self.keypath = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 
 	# ------- UTILS --------
-	def load_key(keyfile):
+	def load_keypair(keyfile):
 		#passphrase = input('Enter a passphrase to decode the saved key: ')
 		passphrase = getpass.getpass('Enter a passphrase to decode the saved key: ')
 		with open(keyfile, 'rb') as f:
