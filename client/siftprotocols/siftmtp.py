@@ -241,7 +241,6 @@ class SiFT_MTP:
 		else:
 			msg_body = enc_payload + mac
 
-		self.msg_hdr_snd_sqn = tmp_snd_sqn
 
 		# DEBUG 
 		if self.DEBUG:
@@ -258,3 +257,5 @@ class SiFT_MTP:
 			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
+
+		self.msg_hdr_snd_sqn = tmp_snd_sqn
