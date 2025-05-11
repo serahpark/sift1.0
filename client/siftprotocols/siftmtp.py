@@ -51,8 +51,7 @@ class SiFT_MTP:
 						  self.type_command_req, self.type_command_res,
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
-		self.finalkey = None
-		self.tk = None
+		self.key
 		self.keypath = None
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
@@ -72,7 +71,7 @@ class SiFT_MTP:
 
 
 	def set_final_key(self, key):
-		self.finalkey = key
+		self.key = key
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
@@ -153,35 +152,30 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
-		
-		etk_value = msg_body[-self.size_msg_etk:]
-		mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
+
 		enc_payload = msg_body[:self.size_msg_enc_payload]
 
 		keypair = self.load_keypair()
 		RSAcipher = PKCS1_OAEP(keypair)
 
 		if parsed_msg_hdr['typ'] == self.type_login_req:
+
+			etk_value = msg_body[-self.size_msg_etk:]
+			mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
 			try:
-				self.tk = RSAcipher.decrypt(etk_value)
-			except ValueError:
-				sys.exit(1)
-			nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
-			cipher = AES.new(self.tk, AES.MODE_GCM, nonce=nonce, mac_len=12)
-			cipher.update(msg_hdr)
-			try:
-				dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+				self.key = RSAcipher.decrypt(etk_value)
 			except ValueError:
 				sys.exit(1)
 		else:
-			# decrypt with final key instead of etk
-			nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
-			cipher = AES.new(self.finalkey, AES.MODE_GCM, nonce=nonce, mac_len=12)
-			cipher.update(msg_hdr)
-			try:
-				dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
-			except ValueError:
-				sys.exit(1)
+			mac = msg_body[-self.size_msg_mac:]
+
+		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		cipher.update(msg_hdr)
+		try:
+			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+		except ValueError:
+			sys.exit(1)
 
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 
