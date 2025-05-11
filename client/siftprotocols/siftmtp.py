@@ -233,7 +233,7 @@ class SiFT_MTP:
 		
 		# append enc_payload, mac, and etk to the login req message
 		if parsed_msg_hdr['typ'] == self.type_login_req:
-			cipher = PKCS1_OAEP(self.key)
+			cipher = PKCS1_OAEP.new(self.key)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
 		
