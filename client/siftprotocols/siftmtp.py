@@ -209,12 +209,12 @@ class SiFT_MTP:
 
 		# if login response/request (check type):
 		if parsed_msg_hdr['typ'] == self.type_login_req or parsed_msg_hdr['typ'] == self.type_login_res:
-			self.msg_hdr_snd_sqn = b'\x00\x01'
+			tmp_snd_sqn = b'\x00\x01'
 			# generate tk for login request
 			if parsed_msg_hdr['typ'] == self.type_login_req:
 				self.key = get_random_bytes(32)
 		else:
-			self.msg_hdr_snd_sqn = self.msg_hdr_snd_sqn + 1
+			tmp_snd_sqn = self.msg_hdr_snd_sqn + 1
 
 		# build message header
 		msg_size = self.size_msg_hdr + len(msg_payload)
@@ -222,7 +222,7 @@ class SiFT_MTP:
 		# generate 6 byte rnd
 		r = get_random_bytes(6)
 		# append rnd, sqn, rsv to the header
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_hdr_snd_sqn + r + self.msg_hdr_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + tmp_snd_sqn + r + self.msg_hdr_rsv
 		
 		# if login request then we use tk to encrypt the payload/everything
 		# otherwise we use the final key to encrypt everything
@@ -236,12 +236,12 @@ class SiFT_MTP:
 			cipher = PKCS1_OAEP(self.key)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
-			return msg_hdr + msg_body
 		
 		# append enc_payload and mac to other messages
 		else:
 			msg_body = enc_payload + mac
-			return msg_hdr + msg_body
+
+		self.msg_hdr_snd_sqn = tmp_snd_sqn
 
 		# DEBUG 
 		if self.DEBUG:
@@ -254,7 +254,7 @@ class SiFT_MTP:
 
 		# try to send
 		try:
-			self.send_bytes(msg_hdr + msg_payload)
+			self.send_bytes(msg_hdr + msg_body)
 			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
