@@ -118,14 +118,13 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete message header received')
 		
 		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
-
+		print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
 		if parsed_msg_hdr['ver'] != self.msg_hdr_ver:
 			raise SiFT_MTP_Error('Unsupported version found in message header')
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
-		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
-	
+		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') + self.size_msg_etk + self.size_msg_mac
 		print("parsed msg hdr")
 		# do we have to check rsv? how do we check sqn and rnd (if even)
 		if parsed_msg_hdr['rsv'] != self.msg_hdr_rsv:
@@ -160,16 +159,26 @@ class SiFT_MTP:
 
 		print("received msg body bytes")
 		enc_payload = msg_body[:self.size_msg_enc_payload]
-
 		RSAcipher = PKCS1_OAEP.new(self.RSAkey)
-
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message received (' + str(msg_len) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('BDY (' + str(len(msg_body)) + '): ')
+			print(msg_body.hex())
+			print('------------------------------------------')
+		# DEBUG 
 		if parsed_msg_hdr['typ'] == self.type_login_req:
-
 			etk_value = msg_body[-self.size_msg_etk:]
-			mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
+			mac = msg_body[self.size_msg_hdr + self.size_msg_enc_payload : self.size_msg_hdr + self.size_msg_enc_payload + self.size_msg_mac]
+			# mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
+			print(RSAcipher.decrypt(etk_value))
 			try:
+				print(RSAcipher.decrypt(etk_value))
 				self.set_final_key(RSAcipher.decrypt(etk_value))
+				print("decrypted etk")
 			except ValueError:
+				print("value error")
 				self.peer_socket.close()
 				sys.exit(1)
 		else:
@@ -178,13 +187,23 @@ class SiFT_MTP:
 		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
+		print("parsed mac & created cipher")
 		try:
-			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			print(len(mac))
+			decrypted = cipher.decrypt(enc_payload)
+			print("decrypted")
+			print(decrypted)
+			dec_payload = cipher.verify(mac)
+			print("verify")
+			print(dec_payload)
+			# dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			print("decrypted and verified payload")
 		except ValueError:
 			self.peer_socket.close()
 			sys.exit(1)
 
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
+		print("updated sqn")
 
 		# DEBUG 
 		if self.DEBUG:
@@ -197,7 +216,8 @@ class SiFT_MTP:
 
 		if len(msg_body) != msg_len - self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
-
+		print(parsed_msg_hdr)
+		print(dec_payload)
 		return parsed_msg_hdr['typ'], dec_payload
 
 
@@ -241,6 +261,8 @@ class SiFT_MTP:
 			cipher = PKCS1_OAEP.new(self.RSAkey)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
+			print("msg body:")
+			print(len(msg_body))
 		
 		# append enc_payload and mac to other messages
 		else:
@@ -251,13 +273,14 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print(msg_payload.hex())
+			print('BDY (' + str(len(msg_body)) + '): ')
+			print(msg_body.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
 		# try to send
 		try:
+			print(msg_hdr + msg_body)
 			self.send_bytes(msg_hdr + msg_body)
 			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
