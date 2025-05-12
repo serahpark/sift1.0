@@ -124,21 +124,23 @@ class SiFT_MTP:
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
+		# we only add self.size_msg_etk for login requests! 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') + self.size_msg_etk + self.size_msg_mac
-		# print("len parsed from header:")
-		# print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
-		# print("etk size")
-		# print(self.size_msg_etk)
-		# print("mac size")
-		# print(self.size_msg_mac)
-		# print("msg_len")
-		# print(msg_len)
+		# msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') + self.size_msg_mac
+		print("len parsed from header:")
+		print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
+		print("etk size")
+		print(self.size_msg_etk)
+		print("mac size")
+		print(self.size_msg_mac)
+		print("msg_len")
+		print(msg_len)
 		# do we have to check rsv? how do we check sqn and rnd (if even)
 		if parsed_msg_hdr['rsv'] != self.msg_hdr_rsv:
 			raise SiFT_MTP_Error('Incorrect reserved field value found in message header')
 		
 		# handle login request (first message being received)
-		# if login req & res are both handled the same, modify line 144. else make an elif
+		# if login req & res are both handled the same, modify line 144. if not, make an elif to handle each
 		if self.msg_hdr_rcv_sqn == b'\x00\x00':
 			# current error: client's rcv sqn is 0000 (since it is trying to receive login response) but we only allow for requests to be received when rcv sqn is 0000
 			if parsed_msg_hdr['typ'] != self.type_login_req and parsed_msg_hdr['typ'] != self.type_login_res:
@@ -173,10 +175,21 @@ class SiFT_MTP:
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
 			
 		print("finished processing msg hdr")
+		print("expected length of enc payload + mac")
+		print(self.size_msg_enc_payload + self.size_msg_mac)
 		try:
 			print("trying")
+			print("# of bytes we are trying to receive")
 			print(msg_len - self.size_msg_hdr)
+			print("msg_len")
+			print(msg_len)
+			print("msg_hdr")
+			print(self.size_msg_hdr)
+			print("msg mac")
+			print(self.size_msg_mac)
+			# msg_body = self.receive_bytes(113)
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
+			# msg_body = self.receive_bytes(msg_len + self.size_msg_mac)
 			print("msg body")
 			print(msg_body.hex())
 		except SiFT_MTP_Error as e:
