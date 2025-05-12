@@ -41,11 +41,11 @@ class SiFT_LOGIN:
         # include client_random: is a hexadecimal number converted to a string, the value
         # of which is a 16-byte freshly generated random value.
 
-        client_random = get_random_bytes(16).hex()
-        login_req_str = login_req_struct['username']
+        client_random = get_random_bytes(16)
+        login_req_str = str(time.time_ns())
+        login_req_str += self.delimiter + login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password']
-        login_req_str += self.delimiter + client_random
-        login_req_str += self.delimiter + str(time.time_ns())
+        login_req_str += self.delimiter + client_random.hex()
         return login_req_str.encode(self.coding), client_random
 
 
@@ -53,6 +53,7 @@ class SiFT_LOGIN:
     def parse_login_req(self, login_req):
 
         login_req_fields = login_req.decode(self.coding).split(self.delimiter)
+        print(login_req_fields)
         login_req_struct = {}
         login_req_struct['timestamps'] = login_req_fields[0]
         login_req_struct['username'] = login_req_fields[1]
@@ -66,8 +67,8 @@ class SiFT_LOGIN:
 
         login_res_str = login_res_struct['request_hash'].hex() 
         # include server_random: is a hexadecimal number converted to a string, the value
-        server_random = get_random_bytes(16).hex()
-        login_req_str += self.delimiter + server_random
+        server_random = get_random_bytes(16)
+        login_res_str += self.delimiter + server_random.hex()
         return login_res_str.encode(self.coding), server_random
 
 
@@ -116,7 +117,7 @@ class SiFT_LOGIN:
         request_hash = hash_fn.digest()
 
         login_req_struct = self.parse_login_req(msg_payload)
-
+        print(login_req_struct)
         # check timestamp (must be within 2 seconds)
         if (int(login_req_struct['timestamps']) > time.time_ns() + 1000000000) or (int(login_req_struct['timestamps']) < time.time_ns() - 1000000000):
             self.mtp.peer_socket.close()
@@ -152,7 +153,7 @@ class SiFT_LOGIN:
         # DEBUG 
 
         # generate final transfer key
-        self.generate_final_transfer_key(login_req_struct['client_random'], server_random, request_hash)
+        self.generate_final_transfer_key(bytes.fromhex(login_req_struct['client_random']), server_random, request_hash)
 
         return login_req_struct['username']
 
@@ -207,12 +208,16 @@ class SiFT_LOGIN:
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
         
-        self.generate_final_transfer_key(client_random, login_res_struct['server_random'], request_hash)
+        self.generate_final_transfer_key(client_random, bytes.fromhex(login_res_struct['server_random']), request_hash)
 
 
     # generate final transfer key by concatenating client_random and server_random, 
     # using request_hash as salt using HKDF key derivation function with SHA-256 
 
     def generate_final_transfer_key(self, client_random, server_random, request_hash):
+        print("types")
+        print(type(client_random))
+        print(type(request_hash))
         final_transfer_key = HKDF(client_random + server_random, 32, request_hash, SHA256)
+        print(final_transfer_key)
         self.mtp.set_final_key(final_transfer_key)

@@ -125,14 +125,22 @@ class SiFT_MTP:
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') + self.size_msg_etk + self.size_msg_mac
-		print("parsed msg hdr")
+		print("len parsed from header:")
+		print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
+		print("etk size")
+		print(self.size_msg_etk)
+		print("mac size")
+		print(self.size_msg_mac)
+		print("msg_len")
+		print(msg_len)
 		# do we have to check rsv? how do we check sqn and rnd (if even)
 		if parsed_msg_hdr['rsv'] != self.msg_hdr_rsv:
 			raise SiFT_MTP_Error('Incorrect reserved field value found in message header')
 		
 		# handle login request (first message being received)
+		# if login req & res are both handled the same, modify line 144. else make an elif
 		if self.msg_hdr_rcv_sqn == b'\x00\x00':
-
+			# current error: client's rcv sqn is 0000 (since it is trying to receive login response) but we only allow for requests to be received when rcv sqn is 0000
 			if parsed_msg_hdr['typ'] != self.type_login_req:
 				self.peer_socket.close()
 				raise SiFT_MTP_Error('Login request expected')
@@ -141,16 +149,29 @@ class SiFT_MTP:
 			if parsed_msg_hdr['sqn'] != b'\x00\x01':
 				self.peer_socket.close()
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
-			
-			self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
-		
+			self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - self.size_msg_hdr
+			# self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
+			print("components of size msg enc payload")
+			print("parsed msg len")
+			print(int.from_bytes(parsed_msg_hdr['len']))
+			print("size msg header")
+			print(self.size_msg_hdr)
+			print("size msg mac")
+			print(self.size_msg_mac)
+			print("size msg etk")
+			print(self.size_msg_etk)
+			print("computed size msg enc payload")
+			print(self.size_msg_enc_payload)
 		# handle all other msgs
 		else:
 
 			if parsed_msg_hdr['sqn'] <= self.msg_hdr_rcv_sqn:
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (too small)')
-			
+			# could be wrong -> need to check whether mac should be included in computation here, if mac is not included
+			# then computation of self.size_msg_enc_payload should be identical for all types of msgs (and can be outside
+			# of any conditionals)
 			self.size_msg_enc_payload = parsed_msg_hdr['len'] - (self.size_msg_hdr + self.size_msg_mac)
+			
 		print("finished processing msg hdr")
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
@@ -187,21 +208,22 @@ class SiFT_MTP:
 		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
-		print("mac")
-		print(mac.hex())
+		# print("mac")
+		# print(mac.hex())
 		print("parsed mac & created cipher")
-		# DEBUG 
-		if self.DEBUG:
-			print('MTP message received (' + str(msg_len) + '):')
-			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('EPD')
-			print(enc_payload.hex())
-			print('MAC')
-			print(mac.hex())
-			print('ETK')
-			print(etk_value.hex())
-			print('------------------------------------------')
-		# DEBUG 
+		# # DEBUG 
+		# if self.DEBUG:
+		# 	print('MTP message received (' + str(msg_len) + '):')
+		# 	print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+		# 	print('EPD')
+		# 	print(enc_payload.hex())
+		# 	print('MAC')
+		# 	print(mac.hex())
+		# 	print('ETK')
+		# 	print(etk_value.hex())
+		# 	print('------------------------------------------')
+		# # DEBUG 
+
 		try:
 			# print(len(mac))
 			# decrypted = cipher.decrypt(enc_payload)
@@ -219,6 +241,20 @@ class SiFT_MTP:
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 		print("updated sqn")
 
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message to send (' + str(msg_len) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			# print('EPD')
+			# print(enc_payload.hex())
+			# print('MAC')
+			# print(mac.hex())
+			# print('ETK')
+			# print(etk.hex())
+			print('BDY (' + str(len(msg_body)) + '): ')
+			print(msg_body.hex())
+			print('------------------------------------------')
+		# DEBUG 
 		# # DEBUG 
 		# if self.DEBUG:
 		# 	print('MTP message received (' + str(msg_len) + '):')
@@ -234,8 +270,6 @@ class SiFT_MTP:
 
 		if len(msg_body) != msg_len - self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
-		print(parsed_msg_hdr)
-		print(dec_payload)
 		return parsed_msg_hdr['typ'], dec_payload
 
 
@@ -273,8 +307,8 @@ class SiFT_MTP:
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
 		enc_payload, mac = cipher.encrypt_and_digest(msg_payload)
-		print("mac")
-		print(mac.hex())
+		print("msg_hdr")
+		print(msg_hdr.hex())
 		# append enc_payload, mac, and etk to the login req message
 		if msg_type == self.type_login_req:
 			cipher = PKCS1_OAEP.new(self.RSAkey)
@@ -292,20 +326,20 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('EPD')
-			print(enc_payload.hex())
-			print('MAC')
-			print(mac.hex())
-			print('ETK')
-			print(etk.hex())
-			# print('BDY (' + str(len(msg_body)) + '): ')
-			# print(msg_body.hex())
+			# print('EPD')
+			# print(enc_payload.hex())
+			# print('MAC')
+			# print(mac.hex())
+			# print('ETK')
+			# print(etk.hex())
+			print('BDY (' + str(len(msg_body)) + '): ')
+			print(msg_body.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
 		# try to send
 		try:
-			print(msg_hdr + msg_body)
+			print((msg_hdr + msg_body).hex())
 			self.send_bytes(msg_hdr + msg_body)
 			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
