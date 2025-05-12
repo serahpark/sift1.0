@@ -118,21 +118,21 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete message header received')
 		
 		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
-		print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
+		# print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
 		if parsed_msg_hdr['ver'] != self.msg_hdr_ver:
 			raise SiFT_MTP_Error('Unsupported version found in message header')
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') + self.size_msg_etk + self.size_msg_mac
-		print("len parsed from header:")
-		print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
-		print("etk size")
-		print(self.size_msg_etk)
-		print("mac size")
-		print(self.size_msg_mac)
-		print("msg_len")
-		print(msg_len)
+		# print("len parsed from header:")
+		# print(int.from_bytes(parsed_msg_hdr['len'], byteorder='big'))
+		# print("etk size")
+		# print(self.size_msg_etk)
+		# print("mac size")
+		# print(self.size_msg_mac)
+		# print("msg_len")
+		# print(msg_len)
 		# do we have to check rsv? how do we check sqn and rnd (if even)
 		if parsed_msg_hdr['rsv'] != self.msg_hdr_rsv:
 			raise SiFT_MTP_Error('Incorrect reserved field value found in message header')
@@ -141,9 +141,9 @@ class SiFT_MTP:
 		# if login req & res are both handled the same, modify line 144. else make an elif
 		if self.msg_hdr_rcv_sqn == b'\x00\x00':
 			# current error: client's rcv sqn is 0000 (since it is trying to receive login response) but we only allow for requests to be received when rcv sqn is 0000
-			if parsed_msg_hdr['typ'] != self.type_login_req:
+			if parsed_msg_hdr['typ'] != self.type_login_req and parsed_msg_hdr['typ'] != self.type_login_res:
 				self.peer_socket.close()
-				raise SiFT_MTP_Error('Login request expected')
+				raise SiFT_MTP_Error('Login request/response expected')
 				
 			
 			if parsed_msg_hdr['sqn'] != b'\x00\x01':
@@ -151,17 +151,17 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error('Incorrect sequence number found in message header (should be 01)')
 			self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - self.size_msg_hdr
 			# self.size_msg_enc_payload = int.from_bytes(parsed_msg_hdr['len'], byteorder='big') - (self.size_msg_hdr + self.size_msg_mac + self.size_msg_etk)
-			print("components of size msg enc payload")
-			print("parsed msg len")
-			print(int.from_bytes(parsed_msg_hdr['len']))
-			print("size msg header")
-			print(self.size_msg_hdr)
-			print("size msg mac")
-			print(self.size_msg_mac)
-			print("size msg etk")
-			print(self.size_msg_etk)
-			print("computed size msg enc payload")
-			print(self.size_msg_enc_payload)
+			# print("components of size msg enc payload")
+			# print("parsed msg len")
+			# print(int.from_bytes(parsed_msg_hdr['len']))
+			# print("size msg header")
+			# print(self.size_msg_hdr)
+			# print("size msg mac")
+			# print(self.size_msg_mac)
+			# print("size msg etk")
+			# print(self.size_msg_etk)
+			# print("computed size msg enc payload")
+			# print(self.size_msg_enc_payload)
 		# handle all other msgs
 		else:
 
@@ -283,7 +283,7 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-
+		print("attempting send_msg")
 		# if login response/request (check type):
 		if msg_type == self.type_login_req or msg_type == self.type_login_res:
 			tmp_snd_sqn = b'\x00\x01'
@@ -292,7 +292,7 @@ class SiFT_MTP:
 				self.key = get_random_bytes(32)
 		else:
 			tmp_snd_sqn = self.msg_hdr_snd_sqn + 1
-
+		print("tmp snd sqn created")
 		# build message header
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
@@ -300,28 +300,29 @@ class SiFT_MTP:
 		r = get_random_bytes(6)
 		# append rnd, sqn, rsv to the header
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + tmp_snd_sqn + r + self.msg_hdr_rsv
-		
+		print("msg_hdr created")
 		# if login request then we use tk to encrypt the payload/everything
 		# otherwise we use the final key to encrypt everything
 		nonce = self.msg_hdr_snd_sqn + r
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
 		enc_payload, mac = cipher.encrypt_and_digest(msg_payload)
-		print("msg_hdr")
-		print(msg_hdr.hex())
+		print("enc and digested payload")
+		# print("msg_hdr")
+		# print(msg_hdr.hex())
 		# append enc_payload, mac, and etk to the login req message
 		if msg_type == self.type_login_req:
 			cipher = PKCS1_OAEP.new(self.RSAkey)
 			etk = cipher.encrypt(self.key)
 			msg_body = enc_payload + mac + etk
-			print("msg body:")
-			print(len(msg_body))
+			# print("msg body:")
+			# print(len(msg_body))
 		
 		# append enc_payload and mac to other messages
 		else:
 			msg_body = enc_payload + mac
 
-
+		print("msg body created")
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
@@ -339,10 +340,10 @@ class SiFT_MTP:
 
 		# try to send
 		try:
-			print((msg_hdr + msg_body).hex())
+			# print((msg_hdr + msg_body).hex())
 			self.send_bytes(msg_hdr + msg_body)
 			# sending message was successful, so we can set self.msg_hdr_snd_sqn = msg_hdr_sqn
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-
 		self.msg_hdr_snd_sqn = tmp_snd_sqn
+		print("sent bytes and updated msg hdr snd sqn")
