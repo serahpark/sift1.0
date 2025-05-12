@@ -26,7 +26,7 @@ class SiFT_MTP:
 		self.version_minor = 5
 		self.msg_hdr_ver = b'\x01\x00'
 		self.msg_hdr_rcv_sqn = b'\x00\x00'
-		self.msg_hdr_snd_sqn = b'\x00\x00'
+		self.msg_hdr_snd_sqn = b'\x00\x01'
 		self.msg_hdr_rsv =  b'\x00\x00'
 		self.size_msg_hdr = 16 # changed to 16 for new header size
 		self.size_msg_hdr_ver = 2
@@ -187,16 +187,30 @@ class SiFT_MTP:
 		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
+		print("mac")
+		print(mac.hex())
 		print("parsed mac & created cipher")
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message received (' + str(msg_len) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('EPD')
+			print(enc_payload.hex())
+			print('MAC')
+			print(mac.hex())
+			print('ETK')
+			print(etk_value.hex())
+			print('------------------------------------------')
+		# DEBUG 
 		try:
-			print(len(mac))
-			decrypted = cipher.decrypt(enc_payload)
-			print("decrypted")
-			print(decrypted)
-			dec_payload = cipher.verify(mac)
-			print("verify")
-			print(dec_payload)
-			# dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			# print(len(mac))
+			# decrypted = cipher.decrypt(enc_payload)
+			# print("decrypted")
+			# print(decrypted)
+			# dec_payload = cipher.verify(mac)
+			# print("verify")
+			# print(dec_payload)
+			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
 			print("decrypted and verified payload")
 		except ValueError:
 			self.peer_socket.close()
@@ -205,14 +219,18 @@ class SiFT_MTP:
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
 		print("updated sqn")
 
-		# DEBUG 
-		if self.DEBUG:
-			print('MTP message received (' + str(msg_len) + '):')
-			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_body)) + '): ')
-			print(msg_body.hex())
-			print('------------------------------------------')
-		# DEBUG 
+		# # DEBUG 
+		# if self.DEBUG:
+		# 	print('MTP message received (' + str(msg_len) + '):')
+		# 	print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+		# 	print('EPD')
+		# 	print(enc_payload.hex())
+		# 	print('MAC')
+		# 	print(mac.hex())
+		# 	print('ETK')
+		# 	print(etk.hex())
+		# 	print('------------------------------------------')
+		# # DEBUG 
 
 		if len(msg_body) != msg_len - self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
@@ -255,7 +273,8 @@ class SiFT_MTP:
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
 		enc_payload, mac = cipher.encrypt_and_digest(msg_payload)
-		
+		print("mac")
+		print(mac.hex())
 		# append enc_payload, mac, and etk to the login req message
 		if msg_type == self.type_login_req:
 			cipher = PKCS1_OAEP.new(self.RSAkey)
@@ -273,8 +292,14 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_body)) + '): ')
-			print(msg_body.hex())
+			print('EPD')
+			print(enc_payload.hex())
+			print('MAC')
+			print(mac.hex())
+			print('ETK')
+			print(etk.hex())
+			# print('BDY (' + str(len(msg_body)) + '): ')
+			# print(msg_body.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
