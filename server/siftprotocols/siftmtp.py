@@ -223,6 +223,8 @@ class SiFT_MTP:
 		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 		print("key (should be final transfer key)")
 		print(self.key.hex())
+		print("nonce")
+		print(nonce.hex())
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		cipher.update(msg_hdr)
 		# print("mac")
@@ -243,26 +245,28 @@ class SiFT_MTP:
 
 		try:
 
-			if parsed_msg_hdr['typ'] != self.type_login_req and parsed_msg_hdr['typ'] != self.type_login_res:
-				decrypted = cipher.decrypt(enc_payload)
-				print("decrypted")
-				print(decrypted.hex())
-			# print(len(mac))
-			# decrypted = cipher.decrypt(enc_payload)
-			# print("decrypted")
-			# print(cipher.decrypt(enc_payload))
-				dec_payload = cipher.verify(mac)
-				print("verify")
-			# print(dec_payload)
-			else:
-				dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
-			print("decrypted and verified payload")
+			# if parsed_msg_hdr['typ'] != self.type_login_req and parsed_msg_hdr['typ'] != self.type_login_res:
+			# 	decrypted = cipher.decrypt(enc_payload)
+			# 	print("decrypted")
+			# 	print(decrypted.hex())
+			# # print(len(mac))
+			# # decrypted = cipher.decrypt(enc_payload)
+			# # print("decrypted")
+			# # print(cipher.decrypt(enc_payload))
+			# 	dec_payload = cipher.verify(mac)
+			# 	print("verify")
+			# # print(dec_payload)
+			# else:
+			dec_payload = cipher.decrypt_and_verify(enc_payload, mac)
+			print("decrypted and verified payload:")
+			print(dec_payload.hex())
 		except ValueError:
 			self.peer_socket.close()
 			sys.exit(1)
 
 		self.msg_hdr_rcv_sqn = parsed_msg_hdr['sqn']
-		print("updated sqn")
+		print("RCV SQN UPDATED: ")
+		print(self.msg_hdr_rcv_sqn)
 
 		# # DEBUG 
 		# if self.DEBUG:
@@ -332,7 +336,10 @@ class SiFT_MTP:
 		print("msg_hdr created")
 		# if login request then we use tk to encrypt the payload/everything
 		# otherwise we use the final key to encrypt everything
-		nonce = self.msg_hdr_snd_sqn + r
+		# nonce = self.msg_hdr_snd_sqn + r
+		nonce = tmp_snd_sqn + r
+		print("nonce")
+		print(nonce.hex())
 		print("key (should be final transfer key)")
 		print(self.key.hex())
 		cipher = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=12)
@@ -377,4 +384,6 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 		self.msg_hdr_snd_sqn = tmp_snd_sqn
+		print("SEND SQN UPDATED: ")
+		print(self.msg_hdr_snd_sqn)
 		print("sent bytes and updated msg hdr snd sqn")
