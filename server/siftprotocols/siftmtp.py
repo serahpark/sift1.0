@@ -319,7 +319,7 @@ class SiFT_MTP:
 			if msg_type == self.type_login_req:
 				self.key = get_random_bytes(32)
 		else:
-			tmp_snd_sqn = (int.from_bytes(self.msg_hdr_snd_sqn) + 1).to_bytes(2, byteorder='big')
+			tmp_snd_sqn = (int.from_bytes(self.msg_hdr_snd_sqn, byteorder='big') + 1).to_bytes(2, byteorder='big')
 		print("tmp snd sqn created")
 		# build message header
 
