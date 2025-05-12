@@ -170,7 +170,7 @@ class SiFT_MTP:
 		# DEBUG 
 		if parsed_msg_hdr['typ'] == self.type_login_req:
 			etk_value = msg_body[-self.size_msg_etk:]
-			mac = msg_body[self.size_msg_hdr + self.size_msg_enc_payload : self.size_msg_hdr + self.size_msg_enc_payload + self.size_msg_mac]
+			mac = msg_body[self.size_msg_enc_payload : self.size_msg_enc_payload + self.size_msg_mac]
 			# mac = msg_body[-(self.size_msg_mac + self.size_msg_etk) : -self.size_msg_etk]
 			print(RSAcipher.decrypt(etk_value))
 			try:
