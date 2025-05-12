@@ -154,7 +154,7 @@ class SiFT_LOGIN:
 
         # generate final transfer key
         self.generate_final_transfer_key(bytes.fromhex(login_req_struct['client_random']), server_random, request_hash)
-
+        print("logged in server")
         return login_req_struct['username']
 
 
@@ -203,13 +203,13 @@ class SiFT_LOGIN:
 
         # processing login response
         login_res_struct = self.parse_login_res(msg_payload)
-
+        print("parsed login response")
         # checking request_hash received in the login response
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
         
         self.generate_final_transfer_key(client_random, bytes.fromhex(login_res_struct['server_random']), request_hash)
-
+        print("logged in client")
 
     # generate final transfer key by concatenating client_random and server_random, 
     # using request_hash as salt using HKDF key derivation function with SHA-256 

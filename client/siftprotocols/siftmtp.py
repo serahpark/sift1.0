@@ -174,8 +174,13 @@ class SiFT_MTP:
 			
 		print("finished processing msg hdr")
 		try:
+			print("trying")
+			print(msg_len - self.size_msg_hdr)
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
+			print("msg body")
+			print(msg_body.hex())
 		except SiFT_MTP_Error as e:
+			print("error")
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
 		print("received msg body bytes")

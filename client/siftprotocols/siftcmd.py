@@ -202,7 +202,7 @@ class SiFT_CMD:
 
     # handles incoming command (to be used by the server)
     def receive_command(self):
-
+        
         if (not self.server_rootdir) or (not self.user_rootdir):
             raise SiFT_CMD_Error('Root directory must be set before any file operations')
 
