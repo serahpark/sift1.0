@@ -31,16 +31,6 @@ class SiFT_LOGIN:
 
     # builds a login request from a dictionary
     def build_login_req(self, login_req_struct):
-        # include timestamp: an unsigned integer number converted to a string,
-        # the value of which is the nanoseconds elapsed since January 1, 1970,
-        # 00:00:00 (UTC) when the login request was generated. For instance,
-        # if Python3 is used to implement this specification, then appropriate 
-        # timestamps can be obtained on Unix-like systems by calling the `time.time_ns()` 
-        # function when the login request is being generated.
-
-        # include client_random: is a hexadecimal number converted to a string, the value
-        # of which is a 16-byte freshly generated random value.
-
         client_random = get_random_bytes(16)
         login_req_str = str(time.time_ns())
         login_req_str += self.delimiter + login_req_struct['username']
@@ -53,7 +43,6 @@ class SiFT_LOGIN:
     def parse_login_req(self, login_req):
 
         login_req_fields = login_req.decode(self.coding).split(self.delimiter)
-        print(login_req_fields)
         login_req_struct = {}
         login_req_struct['timestamps'] = login_req_fields[0]
         login_req_struct['username'] = login_req_fields[1]
@@ -66,7 +55,6 @@ class SiFT_LOGIN:
     def build_login_res(self, login_res_struct):
 
         login_res_str = login_res_struct['request_hash'].hex() 
-        # include server_random: is a hexadecimal number converted to a string, the value
         server_random = get_random_bytes(16)
         login_res_str += self.delimiter + server_random.hex()
         return login_res_str.encode(self.coding), server_random
@@ -117,15 +105,16 @@ class SiFT_LOGIN:
         request_hash = hash_fn.digest()
 
         login_req_struct = self.parse_login_req(msg_payload)
-        print(login_req_struct)
         # check timestamp (must be within 2 seconds)
         if (int(login_req_struct['timestamps']) > time.time_ns() + 1000000000) or (int(login_req_struct['timestamps']) < time.time_ns() - 1000000000):
             self.mtp.peer_socket.close()
             raise SiFT_LOGIN_Error('Login timestamp out of acceptance window')
+        
         # checking username and password
         if login_req_struct['username'] in self.server_users:
             if not self.check_password(login_req_struct['password'], self.server_users[login_req_struct['username']]):
                 raise SiFT_LOGIN_Error('Password verification failed')
+        
         else:
             raise SiFT_LOGIN_Error('Unknown user attempted to log in')
 
@@ -154,7 +143,6 @@ class SiFT_LOGIN:
 
         # generate final transfer key
         self.generate_final_transfer_key(login_req_struct['client_random'], server_random, request_hash)
-        print("logged in server")
         return login_req_struct['username']
 
 
@@ -203,21 +191,16 @@ class SiFT_LOGIN:
 
         # processing login response
         login_res_struct = self.parse_login_res(msg_payload)
-        print("parsed login response")
+    
         # checking request_hash received in the login response
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
         
         self.generate_final_transfer_key(client_random, login_res_struct['server_random'], request_hash)
-        print("logged in client")
 
+    
     # generate final transfer key by concatenating client_random and server_random, 
     # using request_hash as salt using HKDF key derivation function with SHA-256 
-
     def generate_final_transfer_key(self, client_random, server_random, request_hash):
-        print("types")
-        print(type(client_random))
-        print(type(request_hash))
         final_transfer_key = HKDF(client_random + server_random, 32, request_hash, SHA256)
-        print(final_transfer_key)
-        self.mtp.set_final_key(final_transfer_key)
+        self.mtp.set_key(final_transfer_key)
